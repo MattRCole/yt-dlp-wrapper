@@ -1,5 +1,5 @@
-import { AkoApplication } from "./src/ako/application.ts";
-import { AkoRouter } from "./src/ako/router.ts";
+import { AkoApplication } from "./ako/application.ts";
+import { AkoRouter } from "./ako/router.ts";
 import { Status, statusKeeper } from "./status.ts";
 import { YouTubeDownload } from "./yt-dl.ts"
 
@@ -48,6 +48,30 @@ app.use(async (request, ctx, next) => {
   })
 
   return res
+})
+
+const returnStaticAsset = async (path: string, mime: string) => {
+  const asset = await Deno.readTextFile(path)
+  return new Response(asset, {
+    headers: {
+      "Content-Type": mime,
+      "X-Powered-By": "AKO",
+    },
+    status: 200,
+    statusText: "success",
+  })
+}
+
+// For dev purposes only
+app.use(async (request, _ctx, next) => {
+  if (['/index.html', "/", ""].includes(request.path)) {
+    return await returnStaticAsset("../client/index.html", "text/html; charset=utf-8")
+  }
+  if (request.path === "/index.js") {
+    return await returnStaticAsset("../client/index.js", "application/javascript; charset=UTF-8")
+  }
+
+  return await next()
 })
 
 const youtubeDownloader = new YouTubeDownload()

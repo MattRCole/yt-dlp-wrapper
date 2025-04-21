@@ -83,7 +83,7 @@ const INFO_FORMAT_ARGS = {
   playlistTitle: new InfoArg({ name: "playlist_title" }),
 } as const
 
-type YouTubeInfo = {
+export type YouTubeInfo = {
   id?: VideoId,
   playlistId?: ListId,
   uploader?: string,

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="module" src="index.js"></script>
+    <style>
+      label, input[type="radio"], input[type="checkbox"] {
+        user-select: none;
+        cursor: pointer;
+      }
+      legend {
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div>
+        <label for="url-input">Video URL</label>
+        <input type="url" id="url-input">
+      </div>
+      <fieldset>
+        <legend>Am I downloading a Video or Music?</legend>
+        <div>
+          <label for="radio-video">
+            <input type="radio" id="radio-video" name="music-or-video" value="video" checked />
+            Video 🎥
+          </label>
+          <label for="radio-music">
+            <input type="radio" id="radio-music" name="music-or-video" value="music" />
+            Music 🎶
+          </label>
+        </div>
+      </fieldset>
+      <fieldset id="type-selector">
+        <legend id="type-selector-legend">Am I downloading a Single Video or a Playlist?</legend>
+        <div>
+          <label id="radio-type-selector-single-label">
+            <input type="radio" id="radio-type-selector-single" name="type-selector" value="single" checked />
+            Single Video
+          </label>
+          <label for="radio-type-selector-list">
+            <input type="radio" id="radio-type-selector-list" name="type-selector" value="list" />
+            Playlist
+          </label>
+        </div>
+      </fieldset>
+      <fieldset id="list-options" style="display: none;">
+        <legend>Where should I save the Playlist?</legend>
+        <div>
+          <label for="radio-list-options-channel">
+            <input type="radio" id="radio-list-options-channel" name="list-options" value="channel" checked />
+            Save Under Channel Name
+          </label>
+          <label for="radio-list-options-uploader">
+            <input type="radio" id="radio-list-options-uploader" name="list-options" value="uploader" />
+            Save Under Playlist Creator's Name
+          </label>
+        </div>
+      </fieldset>
+      <fieldset id="video-options">
+        <legend>Video Options</legend>
+        <div>
+          <label for="check-video-options-subtitles">
+            <input type="checkbox" id="check-video-options-subtitles" value="subtitles" checked />
+            Include Subtitles (but not auto-gen subs)
+          </label>
+          <label for="check-video-options-sponsor">
+            <input type="checkbox" id="check-video-options-sponsor" value="sponsor" checked />
+            Remove Sponsor Segments
+          </label>
+        </div>
+      </fieldset>
+      <fieldset id="music-options" style="display: none;">
+        <legend>Music Options</legend>
+        <div>
+          <label for="check-music-options-non-music" style="user-select: none;">
+            <input type="checkbox" id="check-music-options-non-music" value="non-music" checked />
+            Remove Non-music segments (Only works sometimes)
+          </label>
+        </div>
+      </fieldset>
+      <button type="button" id="button-download">Download</button>
+    </div>
+  </body>
+</html>

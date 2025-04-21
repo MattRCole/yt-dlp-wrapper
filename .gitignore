@@ -1,3 +1,4 @@
 .vscode
-bin
+/api/bin
+/api/media
 .env
