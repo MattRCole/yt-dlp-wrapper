@@ -1,0 +1,10 @@
+{
+  "tasks": {
+    "base": "echo $PWD && base-task.sh",
+    "dev": "export $(cat ./.env | xargs) && \"$PWD/base-task.sh\" --watch main.ts",
+    "prod": "base main.ts"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
+  }
+}
