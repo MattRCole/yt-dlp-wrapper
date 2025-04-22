@@ -1,4 +1,4 @@
-import { YouTubeInfo, VideoId, ListId, VideoPostOptions } from "./types.ts"
+import { YouTubeInfo, VideoId, ListId, VideoPostOptions, ListPostOptions, MusicPostOptions } from "./types.ts"
 
 class BoolArg {}
 
@@ -8,14 +8,13 @@ const INFO_NULL = crypto.randomUUID().replaceAll("-", "")
 const DEFAULT_VID_ARGS = {
   "-f": `bv*+bestaudio[acodec~='(aac|mp4a.*|mp3.*)']`,
   "--merge-output-format": `mkv`,
-  "--embed-thumbnail": new BoolArg(),
   "--add-metadata": new BoolArg(),
-  "--force-overwrites": new BoolArg(),
 } as const
 
 const INCLUDE_SUBTITLES = {
   "--embed-subs": new BoolArg(),
-  "--sub-langs": "en.*"
+  "--sub-langs": "en.*",
+  "--convert-subs": "ass",
 }
 
 enum SponsorBlockCategories {
@@ -33,15 +32,27 @@ enum SponsorBlockCategories {
 }
 
 const DEFAULT_ARGS = {
-  "--restrict-filenames": new BoolArg()
+  "--restrict-filenames": new BoolArg(),
+  "--embed-thumbnail": new BoolArg(),
+  "--force-overwrites": new BoolArg(),
 }
 
 const SPONSOR_BLOCK_ARGS = {
   "--sponsorblock-remove": SponsorBlockCategories.Sponsor
 } as const
 
-const DEFAULT_MUSIC_ARGS = {
+const NON_MUSIC_BLOCK_ARGS = {
+  "--sponsorblock-remove": SponsorBlockCategories.MusicOffTopic
+} as const
 
+const DEFAULT_MUSIC_ARGS = {
+  "--extract-audio": new BoolArg(),
+  "--audio-format": "mp3",
+  "--audio-quality": "0",
+}
+
+const SAFETY_ARGS = {
+  "--no-exec": new BoolArg(),
 }
 
 enum OutputFormats {
@@ -145,9 +156,13 @@ export class YouTubeDownload {
   }
 
   private static idRegex = /[A-Za-z0-9_-]{11}/
+  private static listIdRegex = /[A-Za-z0-9_-]{10,50}/
   /** Validates if we have a video id or not */
   public validateVideoId(id: string): id is VideoId {
     return YouTubeDownload.idRegex.test(id)
+  }
+  public validateListId(id: string): id is ListId {
+    return YouTubeDownload.listIdRegex.test(id)
   }
 
   public async getInfo(url: string): Promise<YouTubeInfo | undefined> {
@@ -163,9 +178,15 @@ export class YouTubeDownload {
     if (results.code) return undefined
 
     const stdout = new TextDecoder().decode(results.stdout)
-    const convertedOut = stdout.replaceAll(`"`, `\\"`).replaceAll(`${INFO_DELIM}${INFO_NULL}${INFO_DELIM}`, "null").replaceAll(INFO_DELIM, '"')
-    const parsedOut = JSON.parse(convertedOut)
-    return parsedOut 
+    // Only return the first response if applicable
+    const convertedOut = stdout.replaceAll(`"`, `\\"`).replaceAll(`${INFO_DELIM}${INFO_NULL}${INFO_DELIM}`, "null").replaceAll(INFO_DELIM, '"').split("\n")[0]
+    try {
+      const parsedOut = JSON.parse(convertedOut)
+      return parsedOut 
+    } catch (e) {
+      console.error({ stdout, convertedOut })
+      throw e
+    }
   }
 
   public async downloadVideo(id: VideoId, videoOptions: VideoPostOptions) {
@@ -178,6 +199,7 @@ export class YouTubeDownload {
       ...(videoOptions.includeSubtitles ? makeArgs(INCLUDE_SUBTITLES) : []),
       "-o",
       `${this.videoFolderPath}/${OutputFormats.SingleVideo}`,
+      ...makeArgs(SAFETY_ARGS),
       id
     ]
     console.log({ operation: "Download Video", args })
@@ -185,11 +207,57 @@ export class YouTubeDownload {
     return await cmd.output()
   }
 
-  public async downloadList(listId: ListId) {
+  public async downloadSong(id: VideoId, musicOptions: MusicPostOptions) {
     this.handleUpdate()
 
     const args = [
-      // TODO: finish this function
+      ...makeArgs(DEFAULT_ARGS),
+      ...makeArgs(DEFAULT_MUSIC_ARGS),
+      ...(musicOptions.removeNonMusicSegments ? makeArgs(NON_MUSIC_BLOCK_ARGS) : []),
+      "-o",
+      `${this.musicFolderPath}/${OutputFormats.SingleVideo}`,
+      ...makeArgs(SAFETY_ARGS),
+      id
     ]
+    console.log({ operation: "Download Song", args })
+    const cmd = new Deno.Command(this.exeName, { args })
+    return await cmd.output()
+  }
+
+  public async downloadVideoList(listId: ListId, options: VideoPostOptions & ListPostOptions) {
+    this.handleUpdate()
+    const outputPath = `${this.videoFolderPath}/${options.saveUnderUploaderName ? OutputFormats.MultiChannelPlaylist : OutputFormats.SingleChannelPlaylist}`
+
+    const args = [
+      ...makeArgs(DEFAULT_ARGS),
+      ...makeArgs(DEFAULT_VID_ARGS),
+      ...(options.includeSubtitles ? makeArgs(INCLUDE_SUBTITLES) : []),
+      ...(options.removeSponsorSegments ? makeArgs(SPONSOR_BLOCK_ARGS) : []),
+      ...makeArgs(SAFETY_ARGS),
+      "-o",
+      outputPath,
+      listId
+    ]
+    console.log({ operation: "Download Video Playlist", args })
+    const cmd = new Deno.Command(this.exeName, { args })
+    return await cmd.output()
+  }
+
+  public async downloadMusicList(listId: ListId, options: MusicPostOptions & ListPostOptions) {
+    this.handleUpdate()
+    const outputPath = `${this.musicFolderPath}/${options.saveUnderUploaderName ? OutputFormats.MultiChannelPlaylist : OutputFormats.SingleChannelPlaylist}`
+
+    const args = [
+      ...makeArgs(DEFAULT_ARGS),
+      ...makeArgs(DEFAULT_MUSIC_ARGS),
+      ...(options.removeNonMusicSegments ? makeArgs(NON_MUSIC_BLOCK_ARGS) : []),
+      ...makeArgs(SAFETY_ARGS),
+      "-o",
+      outputPath,
+      listId
+    ]
+    console.log({ operation: "Download Music Playlist", args })
+    const cmd = new Deno.Command(this.exeName, { args })
+    return await cmd.output()
   }
 }

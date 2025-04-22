@@ -1,8 +1,7 @@
 import { AkoApplication } from "./ako/application.ts";
 import { AkoRouter } from "./ako/router.ts";
 import { DownloadStatus, InfoStatus, statusKeeper } from "./status.ts";
-import { DownloadInfo, VideoPostOptions } from "./types.ts";
-// import { Status, statusKeeper } from "./status.ts";
+import { DownloadInfo, ListPostOptions, MusicPostOptions, VideoPostOptions } from "./types.ts";
 import { YouTubeDownload } from "./yt-dl.ts"
 
 type AppContext = { body?: unknown, pathParams?: {[key: string]: string } }
@@ -90,7 +89,7 @@ app.use(async (request, _ctx, next) => {
 
 const youtubeDownloader = new YouTubeDownload()
 
-router.get("/video/info", async (request) => {
+router.get("/url/info", async (request) => {
   const encodedUrl = request.searchParams?.get("url")
   if (!encodedUrl) {
     return {
@@ -98,8 +97,6 @@ router.get("/video/info", async (request) => {
       body: "Missing URL",
     }
   }
-
-
   const url = decodeURIComponent(encodedUrl)
 
   statusKeeper.setInfoStatus(url, InfoStatus.Fetching)
@@ -123,8 +120,6 @@ router.get("/video/info", async (request) => {
 })
 
 router.post(/\/video\/download\/(?<videoId>[A-Za-z0-9_-]{11})\/?$/, (_, ctx) => {
-
-
   const body = ctx?.body as DownloadInfo & VideoPostOptions | undefined | null
   const videoId = ctx?.pathParams?.videoId
 
@@ -140,7 +135,9 @@ router.post(/\/video\/download\/(?<videoId>[A-Za-z0-9_-]{11})\/?$/, (_, ctx) => 
     title: body?.title || "Unknown Video",
     type: "video"
   })
-  youtubeDownloader.downloadVideo(videoId, body).then(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Done)).catch(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Error))
+  youtubeDownloader.downloadVideo(videoId, body)
+    .then(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Done))
+    .catch(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Error))
 
   return {
     status: 200,
@@ -149,8 +146,120 @@ router.post(/\/video\/download\/(?<videoId>[A-Za-z0-9_-]{11})\/?$/, (_, ctx) => 
   }
 })
 
+router.post(/\/video-list\/download\/(?<listId>[A-Za-z0-9_-]+)\/?$/, (_, ctx) => {
+  const body = ctx?.body as DownloadInfo & VideoPostOptions & ListPostOptions | undefined | null
+  const listId = ctx?.pathParams?.listId
 
+  if (!listId) return { status: 400, statusText: "No video provided", body: "No video provided"}
+  if (!body) return { status: 400, statusText: "Missing Options", body: "Missing Options"}
 
+  if (!youtubeDownloader.validateListId(listId)) return { status: 400, statusText: "Invalid ListID", body: "Invalid ListID"}
+
+  const statusKey = statusKeeper.startDownloadStatus(listId, {
+    author: body?.author || "Unknown Channel/Uploader",
+    id: listId,
+    isList: true,
+    title: body?.title || "Unknown Video",
+    type: "video"
+  })
+  youtubeDownloader.downloadVideoList(listId, body)
+    .then(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Done))
+    .catch(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Error))
+
+  return {
+    status: 200,
+    statusText: "Download started",
+    body: "Download started",
+  }
+})
+
+router.post(/\/music\/download\/(?<videoId>[A-Za-z0-9_-]{11})\/?$/, (_, ctx) => {
+  const body = ctx?.body as DownloadInfo & MusicPostOptions | undefined | null
+  const videoId = ctx?.pathParams?.videoId
+
+  if (!videoId) return { status: 400, statusText: "No video provided", body: "No video provided"}
+  if (!body) return { status: 400, statusText: "Missing Options", body: "Missing Options"}
+
+  if (!youtubeDownloader.validateVideoId(videoId)) return { status: 400, statusText: "Invalid VideoID", body: "Invalid VideoID"}
+
+  const statusKey = statusKeeper.startDownloadStatus(videoId, {
+    author: body?.author || "Unknown Channel/Uploader",
+    id: videoId,
+    isList: false,
+    title: body?.title || "Unknown Video",
+    type: "video"
+  })
+  youtubeDownloader.downloadSong(videoId, body)
+    .then(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Done))
+    .catch(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Error))
+
+  return {
+    status: 200,
+    statusText: "Download started",
+    body: "Download started",
+  }
+})
+
+router.post(/\/video-list\/download\/(?<listId>[A-Za-z0-9_-]+)\/?$/, (_, ctx) => {
+  const body = ctx?.body as DownloadInfo & VideoPostOptions & ListPostOptions | undefined | null
+  const listId = ctx?.pathParams?.listId
+
+  if (!listId) return { status: 400, statusText: "No video provided", body: "No video provided"}
+  if (!body) return { status: 400, statusText: "Missing Options", body: "Missing Options"}
+
+  if (!youtubeDownloader.validateListId(listId)) return { status: 400, statusText: "Invalid ListID", body: "Invalid ListID"}
+
+  const statusKey = statusKeeper.startDownloadStatus(listId, {
+    author: body?.author || "Unknown Channel/Uploader",
+    id: listId,
+    isList: true,
+    title: body?.title || "Unknown Video",
+    type: "video"
+  })
+  youtubeDownloader.downloadVideoList(listId, body)
+    .then(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Done))
+    .catch(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Error))
+
+  return {
+    status: 200,
+    statusText: "Download started",
+    body: "Download started",
+  }
+})
+
+router.post(/\/music-list\/download\/(?<listId>[A-Za-z0-9_-]+)\/?$/, (_, ctx) => {
+  const body = ctx?.body as DownloadInfo & MusicPostOptions & ListPostOptions | undefined | null
+  const listId = ctx?.pathParams?.listId
+
+  if (!listId) return { status: 400, statusText: "No video provided", body: "No video provided"}
+  if (!body) return { status: 400, statusText: "Missing Options", body: "Missing Options"}
+
+  if (!youtubeDownloader.validateListId(listId)) return { status: 400, statusText: "Invalid ListID", body: "Invalid ListID"}
+
+  const statusKey = statusKeeper.startDownloadStatus(listId, {
+    author: body?.author || "Unknown Channel/Uploader",
+    id: listId,
+    isList: true,
+    title: body?.title || "Unknown Video",
+    type: "video"
+  })
+  youtubeDownloader.downloadMusicList(listId, body)
+    .then(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Done))
+    .catch(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Error))
+
+  return {
+    status: 200,
+    statusText: "Download started",
+    body: "Download started",
+  }
+})
+
+const hostAddr = Deno.env.get("YTDLW_HOSTADDR")
+
+// TODO: Actually verify env values
+if ([null, undefined].includes(hostAddr as unknown as null | undefined)) {
+  throw new Error("Missing host address")
+}
 
 app.use(router.routes())
-app.listen({ port: 5010, hostname: "127.0.0.1" })
+app.listen({ port: parseInt(Deno.env.get("YTDLW_PORT") || ""), hostname: hostAddr })

@@ -69,7 +69,7 @@ const handleDownload = buttonDownload => async () => {
   const isList = radioList.checked
   const typeSelector = `${radioVideo.checked ? 'video' : 'music'}${isList ? '-list' : ''}`
   const url = urlInput.value || ""
-  const encodedURL = encodeURIComponent(urlInput.value)
+  const encodedURL = encodeURIComponent(url)
 
   if (!encodedURL.trim().length) {
     console.warn("Empty URL field, aborting. TODO: Add user notification....")
@@ -79,7 +79,7 @@ const handleDownload = buttonDownload => async () => {
   /** @type {import('../api/src/types').YouTubeInfo} */
   let response
   try {
-    const infoResponse = await fetch(`${BASE_URL}/api/${typeSelector}/info?url=${encodedURL}`)
+    const infoResponse = await fetch(`${BASE_URL}/api/url/info?url=${encodedURL}`)
     if (infoResponse.status === 404) {
       console.warn(`Couldn't find URL, should have user notification. URL: ${url}.`)
       return
@@ -108,14 +108,13 @@ const handleDownload = buttonDownload => async () => {
     id,
     type: isVideo ? "video" : "audio",
     isList,
-    title: response.title,
+    title: isList ? response.playlistTitle : response.title,
     author: !isList ? response.channel : listOptions.radioListOptionsChannel.checked ? response.channel : response.uploader,
   }
   const mediaOptions = isVideo ? {
     "removeSponsorSegments": videoOptions.checkVideoOptionsSponsor.checked,
     "includeSubtitles": videoOptions.checkVideoOptionsSubtitles.checked,
   } : {
-    "title": response.title,
     "removeNonMusicSegments": musicOptions.checkMusicOptionsNonMusic.checked,
   }
 
@@ -420,7 +419,8 @@ class WSHandler {
     /** @type {HTMLParagraphElement} */
     const downloadStatusText = element.getElementsByClassName("download-status-text")[0]
 
-    downloadStatusLegend.innerText = `${info.type === "video" ? "🎥" : "🎶"} ${info.author}`
+    const statusPrefix = (info.isList ? "📋" : "") + (info.type === "video" ? "🎥" : "🎶")
+    downloadStatusLegend.innerText = `${statusPrefix} ${info.author}`
     downloadStatusText.innerText = `${status.charAt(0).toUpperCase()+status.slice(1)}: ${info.title}`
     element.classList = `download-status-item ${status}`
     return element
