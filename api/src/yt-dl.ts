@@ -1,3 +1,5 @@
+import { YouTubeInfo, VideoId, ListId, VideoPostOptions } from "./types.ts"
+
 class BoolArg {}
 
 const INFO_DELIM = crypto.randomUUID().replaceAll("-", "")
@@ -6,12 +8,15 @@ const INFO_NULL = crypto.randomUUID().replaceAll("-", "")
 const DEFAULT_VID_ARGS = {
   "-f": `bv*+bestaudio[acodec~='(aac|mp4a.*|mp3.*)']`,
   "--merge-output-format": `mkv`,
-  "--embed-subs": new BoolArg(),
   "--embed-thumbnail": new BoolArg(),
   "--add-metadata": new BoolArg(),
   "--force-overwrites": new BoolArg(),
-  "--sub-langs": "en.*"
 } as const
+
+const INCLUDE_SUBTITLES = {
+  "--embed-subs": new BoolArg(),
+  "--sub-langs": "en.*"
+}
 
 enum SponsorBlockCategories {
   Sponsor = "sponsor",
@@ -44,9 +49,6 @@ enum OutputFormats {
   SingleChannelPlaylist = `%(channel)s/%(playlist)s/%(playlist_autonumber)s - %(title)s.%(ext)s`,
   MultiChannelPlaylist = `%(uploader)s/%(playlist)s/%(playlist_autonumber)s - %(title)s.%(ext)s`,
 }
-
-type VideoId = `VIDdummy${string}type`
-type ListId = `LIDdummy${string}type`
 
 class InfoArg {
   public name: string
@@ -83,18 +85,6 @@ const INFO_FORMAT_ARGS = {
   playlistTitle: new InfoArg({ name: "playlist_title" }),
 } as const
 
-export type YouTubeInfo = {
-  id?: VideoId,
-  playlistId?: ListId,
-  uploader?: string,
-  channel?: string,
-  duration: number,
-  title?: string,
-  playlistTitle?: string,
-  playlistCount: number
-
-}
-
 const makeArgs = (args: {[key: string]: string | BoolArg }): string[] => {
   return Object.entries(args).flatMap(([k, val]) => val instanceof BoolArg ? k : [k, val])
 }
@@ -108,12 +98,23 @@ export class YouTubeDownloadInvalidIdError extends Error {
 export class YouTubeDownload {
   private lastUpdateTime: Date
   private readonly exeName: string
+  private readonly videoFolderPath: string
+  private readonly musicFolderPath: string
   constructor() {
+
     const exeName = Deno.env.get("YTDLW_EXE")
     const exePath = Deno.env.get("YTDLW_EXE_PATH")
+    const videoFolderPath = Deno.env.get("YTDLW_VIDEO")
+    const musicFolderPath = Deno.env.get("YTDLW_MUSIC")
+
+    if (!videoFolderPath || !musicFolderPath) {
+      throw new Error(`Either music or video path is not defined! videoPath: ${videoFolderPath}, musicPath: ${musicFolderPath}`)
+    }
     if (!exeName) throw new Error(`Cannot determine ytdlp exe name! YTDLW_EXE=${exeName}`)
 
     this.exeName = exeName
+    this.videoFolderPath = videoFolderPath
+    this.musicFolderPath = musicFolderPath
 
     let lastUpdateTime: Date | undefined
 
@@ -167,15 +168,16 @@ export class YouTubeDownload {
     return parsedOut 
   }
 
-  public async downloadVideo(id: VideoId) {
+  public async downloadVideo(id: VideoId, videoOptions: VideoPostOptions) {
     this.handleUpdate()
 
     const args = [
       ...makeArgs(DEFAULT_ARGS),
       ...makeArgs(DEFAULT_VID_ARGS),
-      ...makeArgs(SPONSOR_BLOCK_ARGS),
+      ...(videoOptions.removeSponsorSegments? makeArgs(SPONSOR_BLOCK_ARGS) : []),
+      ...(videoOptions.includeSubtitles ? makeArgs(INCLUDE_SUBTITLES) : []),
       "-o",
-      OutputFormats.SingleVideo,
+      `${this.videoFolderPath}/${OutputFormats.SingleVideo}`,
       id
     ]
     console.log({ operation: "Download Video", args })

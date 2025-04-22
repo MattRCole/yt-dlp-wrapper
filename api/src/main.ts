@@ -1,6 +1,8 @@
 import { AkoApplication } from "./ako/application.ts";
 import { AkoRouter } from "./ako/router.ts";
-import { Status, statusKeeper } from "./status.ts";
+import { DownloadStatus, InfoStatus, statusKeeper } from "./status.ts";
+import { DownloadInfo, VideoPostOptions } from "./types.ts";
+// import { Status, statusKeeper } from "./status.ts";
 import { YouTubeDownload } from "./yt-dl.ts"
 
 type AppContext = { body?: unknown, pathParams?: {[key: string]: string } }
@@ -50,6 +52,18 @@ app.use(async (request, ctx, next) => {
   return res
 })
 
+app.use(async (request, _, next) => {
+  // if it's not an upgrade request, we're not handling it.
+  if (request.headers.get("upgrade") !== "websocket") {
+    console.log(request.headers)
+    return await next()
+  }
+
+  const { socket, response: socketResponse } = Deno.upgradeWebSocket(request.ogRequest)
+  statusKeeper.addClient(socket)
+  return socketResponse
+})
+
 const returnStaticAsset = async (path: string, mime: string) => {
   const asset = await Deno.readTextFile(path)
   return new Response(asset, {
@@ -87,23 +101,46 @@ router.get("/video/info", async (request) => {
 
 
   const url = decodeURIComponent(encodedUrl)
-  const maybeInfo = await youtubeDownloader.getInfo(url)
 
-  if (!maybeInfo) return { status: 404, statusText: "Video not found", body: "Video not found"}
+  statusKeeper.setInfoStatus(url, InfoStatus.Fetching)
+  try {
+    const maybeInfo = await youtubeDownloader.getInfo(url)
 
-  return {status: 200, statusText: "success", body: maybeInfo }
+    if (!maybeInfo) {
+      statusKeeper.setInfoStatus(url, InfoStatus.NotFound)
+      return { status: 404, statusText: "Video not found", body: "Video not found"}
+    }
+    statusKeeper.setInfoStatus(url, InfoStatus.Done)
+
+    return {status: 200, statusText: "success", body: maybeInfo }
+  } catch (e) {
+    console.error(e)
+    const message = e instanceof Error ? e.message : "Unknown Error"
+
+    statusKeeper.setInfoStatus(url, InfoStatus.Error)
+    return {status: 500, statusText: message}
+  }
 })
 
 router.post(/\/video\/download\/(?<videoId>[A-Za-z0-9_-]{11})\/?$/, (_, ctx) => {
 
+
+  const body = ctx?.body as DownloadInfo & VideoPostOptions | undefined | null
   const videoId = ctx?.pathParams?.videoId
 
   if (!videoId) return { status: 400, statusText: "No video provided", body: "No video provided"}
+  if (!body) return { status: 400, statusText: "Missing Options", body: "Missing Options"}
 
   if (!youtubeDownloader.validateVideoId(videoId)) return { status: 400, statusText: "Invalid VideoID", body: "Invalid VideoID"}
 
-  statusKeeper.setStatus(videoId, Status.Downloading)
-  youtubeDownloader.downloadVideo(videoId).then(() => statusKeeper.setStatus(videoId, Status.Done)).catch(() => statusKeeper.setStatus(videoId, Status.Error))
+  const statusKey = statusKeeper.startDownloadStatus(videoId, {
+    author: body?.author || "Unknown Channel/Uploader",
+    id: videoId,
+    isList: false,
+    title: body?.title || "Unknown Video",
+    type: "video"
+  })
+  youtubeDownloader.downloadVideo(videoId, body).then(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Done)).catch(() => statusKeeper.setDownloadStatus(statusKey, DownloadStatus.Error))
 
   return {
     status: 200,
@@ -112,19 +149,6 @@ router.post(/\/video\/download\/(?<videoId>[A-Za-z0-9_-]{11})\/?$/, (_, ctx) => 
   }
 })
 
-router.get(/\/video\/status\/(?<videoId>[A-Za-z0-9_-]{11})\/?$/, (_, ctx) => {
-  const videoId = ctx?.pathParams?.videoId
-
-  console.log({ videoId })
-
-  if (!videoId || !youtubeDownloader.validateVideoId(videoId)) return { status: 400 }
-
-
-  return {
-    status: 200,
-    body: { status: statusKeeper.getStatus(videoId) }
-  }
-})
 
 
 

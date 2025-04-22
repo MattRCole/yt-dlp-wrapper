@@ -131,6 +131,10 @@ export class AkoRequest implements IAkoRequest {
     return this.request.url
   }
 
+  get ogRequest(): Request {
+    return this.request
+  }
+
   constructor(request: Request) {
     this.request = request
     const url = new URL(request.url);

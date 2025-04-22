@@ -6,6 +6,7 @@ export interface IAkoRequest extends Request {
   readonly port?: number;
   readonly hostname: string;
   readonly method: AkoMethod
+  readonly ogRequest: Request
 }
 
 export interface DefaultContext {

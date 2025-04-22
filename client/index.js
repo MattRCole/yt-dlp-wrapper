@@ -33,6 +33,8 @@ const BASE_URL = `${window.location.protocol}//${window.location.host}`
 /** @type {DownloadHandler} */
 let downloadHandler
 
+let wsHandler
+
 window.onload = () => {
   console.log("hi")
   handleListHiding()
@@ -41,82 +43,104 @@ window.onload = () => {
 
   const buttonDownload = document.getElementById("button-download")
 
-  buttonDownload.onclick = async () => {
-    buttonDownload.classList.add("disabled")
-    const {
-      urlInput,
-      videoOptions,
-      musicOptions,
-      mediaType: {
-        radioVideo,
-      },
-      quantityType: {
-        radioList
-      },
-      listOptions
-    } = getAllOptionElements()
+  buttonDownload.onclick = handleDownload(buttonDownload)
 
-    const isVideo = radioVideo.checked
-    const isList = radioList.checked
-    const typeSelector = `${radioVideo.checked ? 'video' : 'music'}${isList ? '-list' : ''}`
-    const url = urlInput.value || ""
-    const encodedURL = encodeURIComponent(urlInput.value)
+  wsHandler = new WSHandler(document.getElementById("general-status-container"))
+}
 
-    if (!encodedURL.trim().length) {
-      console.warn("Empty URL field, aborting. TODO: Add user notification....")
+/** @type {(buttonDownload: HTMLInputElement) => (() => Promise<void>)} */
+const handleDownload = buttonDownload => async () => {
+  buttonDownload.disabled = true
+  buttonDownload.classList.add("disabled")
+  const {
+    urlInput,
+    videoOptions,
+    musicOptions,
+    mediaType: {
+      radioVideo,
+    },
+    quantityType: {
+      radioList
+    },
+    listOptions
+  } = getAllOptionElements()
+
+  const isVideo = radioVideo.checked
+  const isList = radioList.checked
+  const typeSelector = `${radioVideo.checked ? 'video' : 'music'}${isList ? '-list' : ''}`
+  const url = urlInput.value || ""
+  const encodedURL = encodeURIComponent(urlInput.value)
+
+  if (!encodedURL.trim().length) {
+    console.warn("Empty URL field, aborting. TODO: Add user notification....")
+    return
+  }
+
+  /** @type {import('../api/src/types').YouTubeInfo} */
+  let response
+  try {
+    const infoResponse = await fetch(`${BASE_URL}/api/${typeSelector}/info?url=${encodedURL}`)
+    if (infoResponse.status === 404) {
+      console.warn(`Couldn't find URL, should have user notification. URL: ${url}.`)
       return
     }
 
-    /** @type {import('../api/src/yt-dl').YouTubeInfo} */
-    let response
-    try {
-      const infoResponse = await fetch(`${BASE_URL}/api/${typeSelector}/info?url=${encodedURL}`)
-      if (infoResponse.status === 404) {
-        console.warn(`Couldn't find URL, should have user notification. URL: ${url}.`)
-        return
-      }
-
-      if (infoResponse.status >= 300 || infoResponse.status < 200) {
-        const text = await infoResponse.text
-        const statusText = infoResponse.statusText
-        throw new Error(`Failed with status of ${infoResponse.status}: ${statusText}. Body: ${text}`)
-      }
-
-      response = await infoResponse.json()
-
-    } catch (e) {
-      console.error(`Could not get video info for ${url}.`, e)
-      return
-    } finally {
-      buttonDownload.classList.remove("disabled")
+    if (infoResponse.status >= 300 || infoResponse.status < 200) {
+      const text = await infoResponse.text
+      const statusText = infoResponse.statusText
+      throw new Error(`Failed with status of ${infoResponse.status}: ${statusText}. Body: ${text}`)
     }
 
+    response = await infoResponse.json()
 
-    const id = isList ? response.playlistId : response.id
+  } catch (e) {
+    console.error(`Could not get video info for ${url}.`, e)
+    return
+  } finally {
+    buttonDownload.disabled = false
+    buttonDownload.classList.remove("disabled")
+  }
 
-    const body = isVideo ? {
-      "removeSponsorSegments": videoOptions.checkVideoOptionsSponsor.checked,
-      "includeSubtitles": videoOptions.checkVideoOptionsSubtitles.checked,
-    } : {
-      "removeNonMusicSegments": musicOptions.checkMusicOptionsNonMusic.checked,
+
+  const id = isList ? response.playlistId : response.id
+
+  const baseBody = {
+    id,
+    type: isVideo ? "video" : "audio",
+    isList,
+    title: response.title,
+    author: !isList ? response.channel : listOptions.radioListOptionsChannel.checked ? response.channel : response.uploader,
+  }
+  const mediaOptions = isVideo ? {
+    "removeSponsorSegments": videoOptions.checkVideoOptionsSponsor.checked,
+    "includeSubtitles": videoOptions.checkVideoOptionsSubtitles.checked,
+  } : {
+    "title": response.title,
+    "removeNonMusicSegments": musicOptions.checkMusicOptionsNonMusic.checked,
+  }
+
+  const listBodyOptions = !isList ? {} : {
+    "saveUnderUploaderName": listOptions.radioListOptionsChannel.checked
+  }
+
+
+
+  try {
+    const downloadRequestResponse = await fetch(
+      `${BASE_URL}/api/${typeSelector}/download/${id}`,
+      {
+        body: JSON.stringify({ ...mediaOptions, ...baseBody, ...listBodyOptions, }),
+        method: "POST",
+        cache: "no-cache",
+        headers: { "Content-Type": "application/json" }
+      },
+    )
+
+    if (downloadRequestResponse.status < 200 || downloadRequestResponse.status >= 300) {
+      throw new Error(`Failed with status of ${infoResponse.status}: ${statusText}. Body: ${text}`)
     }
-
-    try {
-      const downloadRequestResponse = await fetch(
-        `${BASE_URL}/api/${typeSelector}/download/${id}`,
-        {
-          body,
-          method: "POST",
-          cache: "no-cache",
-        },
-      )
-
-      if (downloadRequestResponse.status < 200 || downloadRequestResponse.status >= 300) {
-        throw new Error(`Failed with status of ${infoResponse.status}: ${statusText}. Body: ${text}`)
-      }
-    } catch (e) {
-      console.error(`Could not successfully submit download request! (need to add user feedback)`, e)
-    }
+  } catch (e) {
+    console.error(`Could not successfully submit download request! (need to add user feedback)`, e)
   }
 }
 
@@ -261,160 +285,144 @@ const handleListHiding = () => {
 
 }
 
-/**
- * @class
- * @constructor
- * @public
- */
-// class DownloadHandler {
-//   /**
-//    * @type {HTMLDivElement}
-//    * @private
-//    */
-//   parentElement
-//   /**
-//    * @type {string}
-//    * @private
-//    */
-//   baseUrl
-//   /**
-//    * @type {{
-//    *  [key: string]: {
-//    *    type: 'video' | 'song' | 'video-list' | 'song-list',
-//    *    title: string,
-//    *    key: string,
-//    *    id: string,
-//    *  }
-//    * }}
-//    * @private
-//    */
-//   pendingDownloads
-//   /**
-//    * @type {{ [key: string]: DownloadOptions }}
-//    * @private
-//    */
-//   pendingInfo
-//   /**
-//    * @type {number | undefined}
-//    * @private
-//    */
-//   intervalHandle
+/** @typedef {import('../api/src/status').WSMessage} WSMessage */
 
-//   /**
-//    * @type {number}
-//    * @private
-//    */
-//   refreshRate
+class WSHandler {
+  /**
+   * @type {{[key: string]: HTMLDivElement}}
+   * @private
+   */
+  existingInfoElements
+  /**
+   * @type {{[key: string]: HTMLDivElement}}
+   * @private
+   */
+  existingDownloadElements
+  /**
+   * @type {string[]}
+   * @private
+   */
+  infoOrder
+  /**
+   * @type {string[]}
+   * @private
+   */
+  downloadOrder
+  /**
+   * @type {HTMLDivElement}
+   * @private
+   */
+  parentElement
 
-//   /**
-//    * @type {{ [key: string]: { message: string, title?: string url?: string } }}
-//    * @private
-//   */
-//   errors
+  constructor(parentElement) {
+    this.existingDownloadElements = {}
+    this.existingInfoElements = {}
+    let socket = new WebSocket(BASE_URL)
+    this.parentElement = parentElement
+    socket.addEventListener("message", ev => {
+      /** @type {WSMessage} */
+      const statusData = JSON.parse(ev.data)
+      this.downloadOrder = this.rectifyLists(this.downloadOrder, Object.keys(statusData.downloadStatuses))
+      this.infoOrder = this.rectifyLists(this.infoOrder, Object.keys(statusData.infoStatuses))
+      this.updateElements(statusData)
+    })
+    socket.addEventListener("close", ev => {
+      setTimeout(() => {
+        // Retry
+        socket = new WebSocket(BASE_URL)
+      }, 100)
+    })
+  }
 
-//   /**
-//    * 
-//    * @param {{
-//    *  baseUrl: string,
-//    *  parentElement: HTMLDivElement,
-//    *  refreshRateMS?: number
-//    * }} options 
-//    */
-//   constructor(options) {
-//     const {
-//       baseUrl,
-//       parentElement,
-//       refreshRateMS = 250,
-//     } = options
-//     this.baseUrl = baseUrl
-//     this.parentElement = parentElement
-//     this.refreshRate = refreshRateMS
-//     this.pendingDownloads = {}
-//     this.pendingInfo = {}
-//     this.errors = {}
-//   }
+  rectifyLists(myList, newList) {
+    return [...newList].sort((a, b) => {
+      const aIndex = myList.indexOf(a)
+      const bIndex = myList.indexOf(b)
+      if ((aIndex === -1) ^ (bIndex === -1)) {
+        return aIndex === -1 ? -1 : 1
+      }
 
-//   loop() {
+      // Either they both exist in the list, so we'll keep existing order
+      // or they both don't, in which case we'll return a 0 which is acceptable
+      return aIndex - bIndex
+    })
+  }
+  /** @type {(statusData: WSMessage) => void} */
+  updateElements(statusData) {
+    console.log(JSON.stringify({ statusData, downloadOrder: this.downloadOrder, infoOrder: this.infoOrder }))
+    const { downloadStatuses, infoStatuses } = statusData
 
-//   }
+    /** @type {HTMLDivElement} */
+    const infoStatusContainer = this.parentElement.getElementsByClassName("info-status-container")[0]
+    // const infoStatusContainer = this.parentElement.getElementById("info-status-container")
+    const oldInfoKeys = Object.keys(this.existingInfoElements)
+    ; [...(infoStatusContainer.childNodes)].forEach(node => infoStatusContainer.removeChild(node))
 
-//   start() {
-//     if (this.intervalHandle) {
-//       console.warn("Cannot start the download handler: it's already running")
-//       return
-//     }
-//     /** @type {() => void} */
-//     const boundLoop = this.loop.bind(this)
-//     this.intervalHandle = setInterval(boundLoop, this.refreshRate);
-//   }
+    for(const infoKey of [...this.infoOrder]) {
+      console.log(infoKey)
+      const oldInfoKeyIndex = oldInfoKeys.indexOf(infoKey)
+      const infoStatus = infoStatuses[infoKey]
+      if (oldInfoKeyIndex >= 0) {
+        oldInfoKeys.splice(oldInfoKeyIndex, 1)
+      }
 
-//   /** @type {boolean} */
-//   get isRunning() {
-//     return this.intervalHandle !== undefined
-//   }
+      const infoElement = this.existingInfoElements[infoKey] || document.createElement("div")
 
-//   stop() {
-//     if (this.intervalHandle === undefined) {
-//       console.warn("Download handler isn't running. Can't stop it again...")
-//       return
-//     }
+      infoElement.innerText = `${infoStatus.charAt(0).toUpperCase() + infoStatus.slice(1)}: ${infoKey}`
+      infoElement.classList = `info-status-item ${infoStatus}`
+      infoStatusContainer.append(infoElement)
+    }
 
-//     clearInterval(this.intervalHandle)
-//     this.intervalHandle = undefined
-//   }
+    oldInfoKeys.forEach(key => delete this.existingInfoElements[key])
 
-//   /**
-//    * Technically we could have multiple of the same URL being downloaded....
-//    * This is responsible for returning a key that uniquely identifies all of the different types of downloads we could have
-//    * 
-//    * @param {DownloadOptions} options 
-//    * @param {string} id Either the URL or id of the resource
-//    */
-//   getKey(options, id) {
-//     return `${id}:${options.type}:${options.isList ? 'list' : 'single'}${options.isList ? `:${options.listSaveLocation}` : ''}`
-//   }
+    const oldDownloadKeys = Object.keys(this.existingDownloadElements)
+    /** @type {HTMLDivElement} */
+    const downloadStatusContainer = this.parentElement.getElementsByClassName("download-status-container")[0]
+    ; [...(downloadStatusContainer.childNodes)].forEach(node => downloadStatusContainer.removeChild(node))
+    for(const downloadKey of [...this.downloadOrder]) {
+      const oldDownloadKeyIndex = oldDownloadKeys.indexOf(downloadKey)
 
-//   /** @type {(response: Response, key: string, retry: number) => void} */
-//   handleInfoResponse(response, key, retry = 0) {
-//     const downloadOptions = this.pendingInfo[key]
-//     this.pendingInfo[key] = undefined
+      if (oldDownloadKeyIndex >= 0) {
+        oldDownloadKeys.splice(oldDownloadKeyIndex, 1)
+      }
 
-//     if (response.status === 404) {
-//       this.errors[key] = { 
-//         message: `Could not get info for ${}`
-//       }
-//     }
-//   }
+      const info = downloadStatuses[downloadKey]
+      const element = this.existingDownloadElements[downloadKey] || this.initializeDownloadElement()
+      this.updateDownloadElement(element, info)
+      downloadStatusContainer.appendChild(element)
+    }
+    // Remove elements that we're no longer tracking
+    oldDownloadKeys.forEach(key => { delete this.downloadOrder[key] })
+  }
 
-//   handleRemoveError(key) {
-//     throw new Error("NOT IMPLEMENTED")
-//   }
+  /**
+   * Returns an empty element
+   * @type {(info: WSMessage['downloadStatuses'][string]) => HTMLDivElement}
+   */
+  initializeDownloadElement() {
+    /** @type {HTMLDivElement} */
+    const templateDownloadStatusItem = document.getElementById("template-download-status-item")
 
-//   /** @type {(downloadOptions: DownloadOptions) => void} */
-//   startDownload(downloadOptions) {
-//     const key = this.getKey(downloadOptions, downloadOptions.url)
-//     if (this.pendingInfo[key]) {
-//       console.warn("We're currently waiting on info for this item.", key)
-//       return
-//     }
-//     if (any(Object.values(this.pendingDownloads), pd => pd.key === key)) {
-//       console.warn("We're currently downloading this item...", key)
-//       return
-//     }
-//     if (this.errors[key]) {
-//       this.handleRemoveError(key)
-//     }
+    /** @type {HTMLDivElement} */
+    const downloadStatusItem = templateDownloadStatusItem.cloneNode(true)
+    // Don't want to manipulate anything other than this duplicate div
+    downloadStatusItem.removeAttribute("id")
+    // Unhide the element
+    downloadStatusItem.style.display = "block"
 
-//     const boundHandleInfoResponse = this.handleInfoResponse.bind(this)
-//     this.pendingInfo[key] = { ...downloadOptions }
-//     const encodedURL = encodeURIComponent(downloadOptions.url)
-//     fetch(
-//       `${this.baseUrl}/${downloadOptions.type}${downloadOptions.isList ? '-list' : ''}/info?url=${encodedURL}`,
-//       {
-//       method: "GET"
-//     }).then(resp => {
-//       boundHandleInfoResponse(resp, key, downloadOptions)
-//     })
-//   }
-// }
+    return downloadStatusItem
+  }
 
+  /** @type {(element: HTMLDivElement, info: WSMessage['downloadStatuses'][string]) => HTMLDivElement} */
+  updateDownloadElement(element, { status, info }) {
+    /** @type {HTMLLegendElement} */
+    const downloadStatusLegend = element.getElementsByClassName("download-status-legend")[0]
+    /** @type {HTMLParagraphElement} */
+    const downloadStatusText = element.getElementsByClassName("download-status-text")[0]
+
+    downloadStatusLegend.innerText = `${info.type === "video" ? "🎥" : "🎶"} ${info.author}`
+    downloadStatusText.innerText = `${status.charAt(0).toUpperCase()+status.slice(1)}: ${info.title}`
+    element.classList = `download-status-item ${status}`
+    return element
+  }
+}

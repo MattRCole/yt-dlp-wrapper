@@ -1,31 +1,223 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <script type="module" src="index.js"></script>
     <style>
+      :root {
+        --content-color: #161925;
+        --positive-color: #81C14B;
+        --negative-color: #D34E24;
+        --neutral-accent-color: #016FB9;
+        --background-color: #8EA8C3;
+        --light-background: #FFD8BE;
+      }
+      body {
+        font-family: "Roboto", sans-serif;
+        background-color: var(--background-color);
+      }
+      body>div:first-child {
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Most of this section comes from: https://moderncss.dev/pure-css-custom-styled-radio-buttons/ */
+      *,*:before,*:after { box-sizing: border-box; }
+      .radio-label,.checkbox-label {
+        font-family: "Roboto", system-ui, sans-serif;
+        font-size: 2rem;
+        font-weight: bold;
+        line-height: 1.2;
+        display: grid;
+        grid-template-columns: 1.1em auto;
+        gap: 0.5em;
+      }
+      .radio-label + .radio-label, .checkbox-label + .checkbox-label {
+        margin-top: 1em;
+      }
+      input[type="radio"] {
+        --webkit-appearance: none;
+        appearance: none;
+        background-color: var(--background-color);
+        margin: 0;
+        font: inherit;
+        color: currentColor;
+        width: 1.15em;
+        height: 1.15em;
+        border: 0.15em solid currentColor;
+        border-radius: 50%;
+        transform: translateY(-0.075em);
+        display: grid;
+        place-content: center;
+      }
+      input[type="radio"]::before {
+        content: "";
+        width: 0.65em;
+        height: 0.65em;
+        border-radius: 0.325em;
+        transform: scale(0);
+        transition: 120ms transform ease-in-out;
+        box-shadow: inset 1em 1em var(--neutral-accent-color);
+      }
+      input[type="radio"]:checked::before {
+        transform: scale(1);
+      }
+
+      input[type="checkbox"] {
+        --webkit-appearance: none;
+        appearance: none;
+        background-color: var(--background-color);
+        margin: 0;
+        font: inherit;
+        color: currentColor;
+        width: 1.15em;
+        height: 1.15em;
+        border: 0.15em solid currentColor;
+        border-radius: 0.15em;
+        transform: translateY(-0.075em);
+        display: grid;
+        place-content: center;
+      }
+      input[type="checkbox"]::before {
+        content: "";
+        width: 0.65em;
+        height: 0.65em;
+        /* border-radius: 0.1em; */
+        transform: scale(0);
+        transition: 120ms transform ease-in-out;
+        box-shadow: inset 1em 1em var(--neutral-accent-color);
+        background-color: CanvasText;
+        transform-origin: bottom left;
+        clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+      }
+      input[type="checkbox"]:checked::before {
+        transform: scale(1);
+      }
+
+      .url-container {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 1.5rem;
+      }
+      .url-container>label {
+        font-size: 2rem;
+        font-weight: bold;
+      }
+
+      input[type="url"] {
+        font-size: 2rem;
+        padding: 0.25em 0.5em;
+        background-color: var(--light-background);
+        border: 2px solid var(--neutral-accent-color);
+        border-radius: 4px;
+      }
+
+      button.button {
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: transparent;
+        font-family: inherit;
+        font-size: 2rem;
+        padding: 0.25em 0.75em;
+        min-width: 10ch;
+        min-height: 44px;
+        cursor: pointer;
+        @media screen and (-ms-high-contrast: active) {
+          border: 2px solid currentColor;
+        }
+        background-color: var(--neutral-accent-color);
+        color: var(--light-background);
+        border-radius: 8px;
+        box-shadow: 0 3px 5px rgba(0, 0, 0, 0.18);
+        text-align: center;
+        line-height: 1.1;
+        transition: 220ms all ease-in-out;
+      }
+      button.button.disabled,button.button.disabled:hover {
+        color: var(--background-color);
+        background-color: var(--negative-color);
+        cursor: not-allowed;
+      }
+
+      button.button:hover {
+        background-color: var(--positive-color);
+        color: var(--content-color);
+      }
+
+      #button-download {
+        margin-block: 2rem;
+        margin-inline: auto;
+        align-self: center;
+        justify-self: center;
+        min-width: 50%;
+      }
+
+
       label, input[type="radio"], input[type="checkbox"] {
         user-select: none;
         cursor: pointer;
       }
+      fieldset {
+        border-color: var(--neutral-accent-color);
+        font-size: 2rem;
+        font-weight: bolder;
+        transition: 220ms all ease-in-out;
+      }
+      fieldset + fieldset {
+        margin-top: 2.5rem;
+      }
       legend {
         user-select: none;
+      }
+      #general-status-container {
+        padding: 0.5rem;
+        box-sizing: border-box;
+        margin-top: 1rem;
+        border: 1px solid var(--neutral-accent-color);
+        border-radius: 0.5rem;
+        display: flex;
+        flex-direction: column;
+      }
+      #general-status-container > .info-status-container {
+        display: flex;
+        flex-direction: column;
+      }
+      #general-status-container > .info-status-container>div {
+        background-clip: border-box;
+        padding: 0.5rem;
+        box-sizing: border-box;
+        margin-top: 1rem;
+        border: 1px solid var(--neutral-accent-color);
+        border-radius: 0.5rem;
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+      #general-status-container>.info-status-container>div.done, #general-status-container>.download-status-container>div.done>fieldset {
+        background-color: var(--positive-color);
+      }
+      #general-status-container>.info-status-container {
+        margin-bottom: 1.5rem;
       }
     </style>
   </head>
   <body>
     <div>
-      <div>
+      <div class="url-container">
         <label for="url-input">Video URL</label>
         <input type="url" id="url-input">
       </div>
       <fieldset>
         <legend>Am I downloading a Video or Music?</legend>
         <div>
-          <label for="radio-video">
+          <label for="radio-video" class="radio-label">
             <input type="radio" id="radio-video" name="music-or-video" value="video" checked />
             Video 🎥
           </label>
-          <label for="radio-music">
+          <label for="radio-music" class="radio-label">
             <input type="radio" id="radio-music" name="music-or-video" value="music" />
             Music 🎶
           </label>
@@ -34,11 +226,11 @@
       <fieldset id="type-selector">
         <legend id="type-selector-legend">Am I downloading a Single Video or a Playlist?</legend>
         <div>
-          <label id="radio-type-selector-single-label">
+          <label id="radio-type-selector-single-label" class="radio-label">
             <input type="radio" id="radio-type-selector-single" name="type-selector" value="single" checked />
             Single Video
           </label>
-          <label for="radio-type-selector-list">
+          <label for="radio-type-selector-list" class="radio-label">
             <input type="radio" id="radio-type-selector-list" name="type-selector" value="list" />
             Playlist
           </label>
@@ -47,11 +239,11 @@
       <fieldset id="list-options" style="display: none;">
         <legend>Where should I save the Playlist?</legend>
         <div>
-          <label for="radio-list-options-channel">
+          <label for="radio-list-options-channel" class="radio-label">
             <input type="radio" id="radio-list-options-channel" name="list-options" value="channel" checked />
             Save Under Channel Name
           </label>
-          <label for="radio-list-options-uploader">
+          <label for="radio-list-options-uploader" class="radio-label">
             <input type="radio" id="radio-list-options-uploader" name="list-options" value="uploader" />
             Save Under Playlist Creator's Name
           </label>
@@ -60,11 +252,11 @@
       <fieldset id="video-options">
         <legend>Video Options</legend>
         <div>
-          <label for="check-video-options-subtitles">
+          <label for="check-video-options-subtitles" class="checkbox-label">
             <input type="checkbox" id="check-video-options-subtitles" value="subtitles" checked />
             Include Subtitles (but not auto-gen subs)
           </label>
-          <label for="check-video-options-sponsor">
+          <label for="check-video-options-sponsor" class="checkbox-label">
             <input type="checkbox" id="check-video-options-sponsor" value="sponsor" checked />
             Remove Sponsor Segments
           </label>
@@ -73,13 +265,23 @@
       <fieldset id="music-options" style="display: none;">
         <legend>Music Options</legend>
         <div>
-          <label for="check-music-options-non-music" style="user-select: none;">
+          <label for="check-music-options-non-music" style="user-select: none;" class="checkbox-label">
             <input type="checkbox" id="check-music-options-non-music" value="non-music" checked />
             Remove Non-music segments (Only works sometimes)
           </label>
         </div>
       </fieldset>
-      <button type="button" id="button-download">Download</button>
+      <button type="button" id="button-download" class="button">Download</button>
+    </div>
+    <div id="general-status-container">
+      <div class="info-status-container"></div>
+      <div class="download-status-container"></div>
+    </div>
+    <div style="display: none;" id="template-download-status-item">
+      <fieldset>
+        <legend class="download-status-legend">🎥 Example Channel Name</legend>
+        <p class="download-status-text">Example Title: Example Status</p>
+      </fieldset>
     </div>
   </body>
 </html>
