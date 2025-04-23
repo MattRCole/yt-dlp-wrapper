@@ -316,7 +316,8 @@ class WSHandler {
   constructor(parentElement) {
     this.existingDownloadElements = {}
     this.existingInfoElements = {}
-    let socket = new WebSocket(BASE_URL)
+    const wsUrl = `${BASE_URL}/api/ws`
+    let socket = new WebSocket(wsUrl)
     this.parentElement = parentElement
     socket.addEventListener("message", ev => {
       /** @type {WSMessage} */
@@ -328,7 +329,7 @@ class WSHandler {
     socket.addEventListener("close", ev => {
       setTimeout(() => {
         // Retry
-        socket = new WebSocket(`${BASE_URL}/api/ws`)
+        socket = new WebSocket(wsUrl)
       }, 100)
     })
   }
