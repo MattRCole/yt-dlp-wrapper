@@ -328,7 +328,7 @@ class WSHandler {
     socket.addEventListener("close", ev => {
       setTimeout(() => {
         // Retry
-        socket = new WebSocket(BASE_URL)
+        socket = new WebSocket(`${BASE_URL}/api/ws`)
       }, 100)
     })
   }
