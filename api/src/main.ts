@@ -1,5 +1,6 @@
 import { AkoApplication } from "./ako/application.ts";
 import { AkoRouter } from "./ako/router.ts";
+import { staticAssetRouter } from "./static-assets.ts";
 import { DownloadStatus, InfoStatus, statusKeeper } from "./status.ts";
 import { DownloadInfo, ListPostOptions, MusicPostOptions, VideoPostOptions } from "./types.ts";
 import { YouTubeDownload } from "./yt-dl.ts"
@@ -54,7 +55,7 @@ app.use(async (request, ctx, next) => {
 app.use(async (request, _, next) => {
   // if it's not an upgrade request, we're not handling it.
   if (request.headers.get("upgrade") !== "websocket") {
-    console.log(request.headers)
+    // console.log(request.headers)
     return await next()
   }
 
@@ -63,29 +64,6 @@ app.use(async (request, _, next) => {
   return socketResponse
 })
 
-const returnStaticAsset = async (path: string, mime: string) => {
-  const asset = await Deno.readTextFile(path)
-  return new Response(asset, {
-    headers: {
-      "Content-Type": mime,
-      "X-Powered-By": "AKO",
-    },
-    status: 200,
-    statusText: "success",
-  })
-}
-
-// For dev purposes only
-app.use(async (request, _ctx, next) => {
-  if (['/index.html', "/", ""].includes(request.path)) {
-    return await returnStaticAsset("../client/index.html", "text/html; charset=utf-8")
-  }
-  if (request.path === "/index.js") {
-    return await returnStaticAsset("../client/index.js", "application/javascript; charset=UTF-8")
-  }
-
-  return await next()
-})
 
 const youtubeDownloader = new YouTubeDownload()
 
@@ -262,4 +240,8 @@ if ([null, undefined].includes(hostAddr as unknown as null | undefined)) {
 }
 
 app.use(router.routes())
+// Intentionally put after the API routes since it has a broader match criteria
+app.use(staticAssetRouter.routes())
+
 app.listen({ port: parseInt(Deno.env.get("YTDLW_PORT") || ""), hostname: hostAddr })
+
