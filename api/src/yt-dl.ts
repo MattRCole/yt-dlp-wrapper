@@ -175,9 +175,19 @@ export class YouTubeDownload {
       url
     ]})
     const results = await cmd.output()
-    if (results.code) return undefined
+    const decoder = new TextDecoder()
+    const stdout = decoder.decode(results.stdout)
+    if (results.code) {
+      const stderr = decoder.decode(results.stderr)
+      console.error({
+        msg: "Potential problem retrieving data.",
+        code: results.code,
+        stderr,
+        stdout,
+      })
+      return undefined
+    }
 
-    const stdout = new TextDecoder().decode(results.stdout)
     // Only return the first response if applicable
     const convertedOut = stdout.replaceAll(`"`, `\\"`).replaceAll(`${INFO_DELIM}${INFO_NULL}${INFO_DELIM}`, "null").replaceAll(INFO_DELIM, '"').split("\n")[0]
     try {
