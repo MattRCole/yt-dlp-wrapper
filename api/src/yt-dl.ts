@@ -58,7 +58,7 @@ const SAFETY_ARGS = {
 enum OutputFormats {
   SingleVideo = `%(channel)s/%(title)s.%(ext)s`,
   SingleChannelPlaylist = `%(channel)s/%(playlist)s/%(playlist_autonumber)s - %(title)s.%(ext)s`,
-  MultiChannelPlaylist = `%(uploader)s/%(playlist)s/%(playlist_autonumber)s - %(title)s.%(ext)s`,
+  MultiChannelPlaylist = `playlists/%(playlist)s/%(playlist_autonumber)s - %(title)s.%(ext)s`,
 }
 
 class InfoArg {
@@ -236,7 +236,7 @@ export class YouTubeDownload {
 
   public async downloadVideoList(listId: ListId, options: VideoPostOptions & ListPostOptions) {
     this.handleUpdate()
-    const outputPath = `${this.videoFolderPath}/${options.saveUnderUploaderName ? OutputFormats.MultiChannelPlaylist : OutputFormats.SingleChannelPlaylist}`
+    const outputPath = `${this.videoFolderPath}/${options.saveUnderPlaylistName ? OutputFormats.MultiChannelPlaylist : OutputFormats.SingleChannelPlaylist}`
 
     const args = [
       ...makeArgs(DEFAULT_ARGS),
@@ -255,7 +255,7 @@ export class YouTubeDownload {
 
   public async downloadMusicList(listId: ListId, options: MusicPostOptions & ListPostOptions) {
     this.handleUpdate()
-    const outputPath = `${this.musicFolderPath}/${options.saveUnderUploaderName ? OutputFormats.MultiChannelPlaylist : OutputFormats.SingleChannelPlaylist}`
+    const outputPath = `${this.musicFolderPath}/${options.saveUnderPlaylistName ? OutputFormats.MultiChannelPlaylist : OutputFormats.SingleChannelPlaylist}`
 
     const args = [
       ...makeArgs(DEFAULT_ARGS),

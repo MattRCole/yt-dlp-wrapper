@@ -30,5 +30,5 @@ export type MusicPostOptions = {
   }
 
 export type ListPostOptions = {
-  saveUnderUploaderName: boolean
+  saveUnderPlaylistName: boolean
 }

@@ -111,7 +111,7 @@ const handleDownload = buttonDownload => async () => {
     type: isVideo ? "video" : "audio",
     isList,
     title: isList ? response.playlistTitle : response.title,
-    author: !isList ? response.channel : listOptions.radioListOptionsChannel.checked ? response.channel : response.uploader,
+    author: !isList ? response.channel : listOptions.radioListOptionsChannel.checked ? response.channel : response.playlistTitle,
   }
   const mediaOptions = isVideo ? {
     "removeSponsorSegments": videoOptions.checkVideoOptionsSponsor.checked,
@@ -121,7 +121,7 @@ const handleDownload = buttonDownload => async () => {
   }
 
   const listBodyOptions = !isList ? {} : {
-    "saveUnderUploaderName": listOptions.radioListOptionsChannel.checked
+    "saveUnderPlaylistName": listOptions.radioListOptionsPlaylist.checked
   }
 
 
@@ -174,7 +174,7 @@ const getAllOptionElements = () => {
   /** @type {HTMLInputElement} */
   const radioListOptionsChannel = document.getElementById("radio-list-options-channel")
   /** @type {HTMLInputElement} */
-  const radioListOptionsUploader = document.getElementById("radio-list-options-uploader")
+  const radioListOptionsPlaylist = document.getElementById("radio-list-options-playlist-name")
 
   /** @type {HTMLFieldSetElement} */
   const videoOptionsFieldSet = document.getElementById("video-options")
@@ -201,7 +201,7 @@ const getAllOptionElements = () => {
     listOptions: {
       listOptionsFieldSet,
       radioListOptionsChannel,
-      radioListOptionsUploader,
+      radioListOptionsPlaylist,
     },
     videoOptions: {
       videoOptionsFieldSet,

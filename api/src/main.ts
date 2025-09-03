@@ -137,7 +137,7 @@ router.post(/\/video-list\/download\/(?<listId>[A-Za-z0-9_-]+)\/?$/, (_, ctx) =>
     author: body?.author || "Unknown Channel/Uploader",
     id: listId,
     isList: true,
-    title: body?.title || "Unknown Video",
+    title: body?.title || "Unknown Playlist",
     type: "video"
   })
   youtubeDownloader.downloadVideoList(listId, body)
@@ -191,7 +191,7 @@ router.post(/\/video-list\/download\/(?<listId>[A-Za-z0-9_-]+)\/?$/, (_, ctx) =>
     author: body?.author || "Unknown Channel/Uploader",
     id: listId,
     isList: true,
-    title: body?.title || "Unknown Video",
+    title: body?.title || "Unknown Playlist",
     type: "video"
   })
   youtubeDownloader.downloadVideoList(listId, body)
