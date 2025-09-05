@@ -1,6 +1,6 @@
-import { AkoRouter } from "./ako/router.ts";
+import { AkoRouter, AkoContext } from "./ako/router.ts";
 
-export const staticAssetRouter = new AkoRouter()
+export const staticAssetRouter = new AkoRouter<AkoContext<{ requestId: string }>>()
 const returnStaticAsset = async (path: string, mime: string) => {
 
   const asset = await Deno.readFile(path)

@@ -78,40 +78,10 @@ const handleDownload = buttonDownload => async () => {
     return
   }
 
-  /** @type {import('../api/src/types').YouTubeInfo} */
-  let response
-  try {
-    const infoResponse = await fetch(`${BASE_URL}/api/url/info?url=${encodedURL}`)
-    if (infoResponse.status === 404) {
-      console.warn(`Couldn't find URL, should have user notification. URL: ${url}.`)
-      return
-    }
-
-    if (infoResponse.status >= 300 || infoResponse.status < 200) {
-      const text = await infoResponse.text
-      const statusText = infoResponse.statusText
-      throw new Error(`Failed with status of ${infoResponse.status}: ${statusText}. Body: ${text}`)
-    }
-
-    response = await infoResponse.json()
-
-  } catch (e) {
-    console.error(`Could not get video info for ${url}.`, e)
-    return
-  } finally {
-    buttonDownload.disabled = false
-    buttonDownload.classList.remove("disabled")
-  }
-
-
-  const id = isList ? response.playlistId : response.id
-
   const baseBody = {
-    id,
+    url,
     type: isVideo ? "video" : "audio",
     isList,
-    title: isList ? response.playlistTitle : response.title,
-    author: !isList ? response.channel : listOptions.radioListOptionsChannel.checked ? response.channel : response.playlistTitle,
   }
   const mediaOptions = isVideo ? {
     "removeSponsorSegments": videoOptions.checkVideoOptionsSponsor.checked,
@@ -124,11 +94,9 @@ const handleDownload = buttonDownload => async () => {
     "saveUnderPlaylistName": listOptions.radioListOptionsPlaylist.checked
   }
 
-
-
   try {
     const downloadRequestResponse = await fetch(
-      `${BASE_URL}/api/${typeSelector}/download/${id}`,
+      `${BASE_URL}/api/${typeSelector}/download`,
       {
         body: JSON.stringify({ ...mediaOptions, ...baseBody, ...listBodyOptions, }),
         method: "POST",
@@ -142,6 +110,9 @@ const handleDownload = buttonDownload => async () => {
     }
   } catch (e) {
     console.error(`Could not successfully submit download request! (need to add user feedback)`, e)
+  } finally {
+    buttonDownload.disabled = false
+    buttonDownload.classList.remove("disabled")
   }
 }
 

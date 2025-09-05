@@ -10,15 +10,12 @@ export type YouTubeInfo = {
   title?: string,
   playlistTitle?: string,
   playlistCount: number
-
 }
 
 export type DownloadInfo = {
-  id: string,
+  url: string,
   type: "video" | "audio",
   isList: boolean,
-  title: string,
-  author: string,
 }
 
 export type VideoPostOptions = {
@@ -31,4 +28,8 @@ export type MusicPostOptions = {
 
 export type ListPostOptions = {
   saveUnderPlaylistName: boolean
+}
+
+export type RequireSome<T, K extends keyof T> = Omit<T, K> & {
+  [P in K]-?: T[P]
 }

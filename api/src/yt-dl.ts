@@ -49,6 +49,7 @@ const DEFAULT_MUSIC_ARGS = {
   "--extract-audio": new BoolArg(),
   "--audio-format": "mp3",
   "--audio-quality": "0",
+  "--embed-metadata": new BoolArg()
 }
 
 const SAFETY_ARGS = {

@@ -1,21 +1,12 @@
 /** @typedef {import('../api/src/status').WSMessage} WSMessage */
+/** @typedef {WSMessage[string]} StatusMessage */
 
 export class WSHandler {
   /**
    * @type {{[key: string]: HTMLDivElement}}
    * @private
    */
-  existingInfoElements
-  /**
-   * @type {{[key: string]: HTMLDivElement}}
-   * @private
-   */
   existingDownloadElements
-  /**
-   * @type {string[]}
-   * @private
-   */
-  infoOrder
   /**
    * @type {string[]}
    * @private
@@ -34,7 +25,7 @@ export class WSHandler {
 
   constructor(parentElement, baseUrl) {
     this.existingDownloadElements = {}
-    this.existingInfoElements = {}
+    // this.existingInfoElements = {}
     this.baseUrl = baseUrl
     const wsUrl = `${this.baseUrl}/api/ws`
     let socket = new WebSocket(wsUrl)
@@ -42,8 +33,8 @@ export class WSHandler {
     socket.addEventListener("message", ev => {
       /** @type {WSMessage} */
       const statusData = JSON.parse(ev.data)
-      this.downloadOrder = this.rectifyLists(this.downloadOrder, Object.keys(statusData.downloadStatuses))
-      this.infoOrder = this.rectifyLists(this.infoOrder, Object.keys(statusData.infoStatuses))
+      this.downloadOrder = this.rectifyLists(this.downloadOrder, Object.keys(statusData))
+      // this.infoOrder = this.rectifyLists(this.infoOrder, Object.keys(statusData.infoStatuses))
       this.updateElements(statusData)
     })
     socket.addEventListener("close", ev => {
@@ -69,31 +60,9 @@ export class WSHandler {
   }
   /** @type {(statusData: WSMessage) => void} */
   updateElements(statusData) {
-    console.log(JSON.stringify({ statusData, downloadOrder: this.downloadOrder, infoOrder: this.infoOrder }))
-    const { downloadStatuses, infoStatuses } = statusData
+    console.log(JSON.stringify({ statusData, downloadOrder: this.downloadOrder }))
 
-    /** @type {HTMLDivElement} */
-    const infoStatusContainer = this.parentElement.getElementsByClassName("info-status-container")[0]
-    // const infoStatusContainer = this.parentElement.getElementById("info-status-container")
-    const oldInfoKeys = Object.keys(this.existingInfoElements)
-    ; [...(infoStatusContainer.childNodes)].forEach(node => infoStatusContainer.removeChild(node))
-
-    for(const infoKey of [...this.infoOrder]) {
-      console.log(infoKey)
-      const oldInfoKeyIndex = oldInfoKeys.indexOf(infoKey)
-      const infoStatus = infoStatuses[infoKey]
-      if (oldInfoKeyIndex >= 0) {
-        oldInfoKeys.splice(oldInfoKeyIndex, 1)
-      }
-
-      const infoElement = this.existingInfoElements[infoKey] || document.createElement("div")
-
-      infoElement.innerText = `${infoStatus.charAt(0).toUpperCase() + infoStatus.slice(1)}: ${infoKey}`
-      infoElement.classList = `info-status-item ${infoStatus}`
-      infoStatusContainer.append(infoElement)
-    }
-
-    oldInfoKeys.forEach(key => delete this.existingInfoElements[key])
+    const downloadStatuses = statusData
 
     const oldDownloadKeys = Object.keys(this.existingDownloadElements)
     /** @type {HTMLDivElement} */
@@ -133,17 +102,17 @@ export class WSHandler {
     return downloadStatusItem
   }
 
-  /** @type {(element: HTMLDivElement, info: WSMessage['downloadStatuses'][string]) => HTMLDivElement} */
-  updateDownloadElement(element, { status, info }) {
+  /** @type {(element: HTMLDivElement, statusMessage: StatusMessage) => HTMLDivElement} */
+  updateDownloadElement(element, statusMessage) {
     /** @type {HTMLLegendElement} */
     const downloadStatusLegend = element.getElementsByClassName("download-status-legend")[0]
     /** @type {HTMLParagraphElement} */
     const downloadStatusText = element.getElementsByClassName("download-status-text")[0]
 
-    const statusPrefix = (info.isList ? "📋" : "") + (info.type === "video" ? "🎥" : "🎶")
-    downloadStatusLegend.innerText = `${statusPrefix} ${info.author}`
-    downloadStatusText.innerText = `${status.charAt(0).toUpperCase()+status.slice(1)}: ${info.title}`
-    element.classList = `download-status-item ${status}`
+    const statusPrefix = (statusMessage.isList ? "📋" : "") + (statusMessage.type === "video" ? "🎥" : "🎶")
+    downloadStatusLegend.innerText = `${statusPrefix} ${statusMessage.author || "Unknown Author"}`
+    downloadStatusText.innerText = `${statusMessage.status.charAt(0).toUpperCase()+statusMessage.status.slice(1)}: ${statusMessage.title || statusMessage.url}`
+    element.classList = `download-status-item ${statusMessage.status}`
     return element
   }
 }

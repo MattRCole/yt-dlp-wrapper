@@ -1,41 +1,44 @@
 import { DownloadInfo } from "./types.ts";
 
 export enum DownloadStatus {
+  Fetching = "fetching",
+  NotFound = "not-found",
   Downloading = "downloading",
   Done = "done",
   Unknown = "unknown",
   Error = "error",
 }
 
-export enum InfoStatus {
-  Fetching = "fetching",
-  NotFound = "not-found",
-  Done = "done",
-  Error = "error"
+export type StatusMessage = DownloadInfo & {
+  id: string,
+  author?: string,
+  title?: string,
+  ytID?: string,
+  status: DownloadStatus
+}
+
+export type GetSimilarStatusesArgs = Omit<DownloadInfo, 'url'> & {
+  ytID: string,
 }
 
 export type WSMessage = {
-  infoStatuses: { [k: string]: InfoStatus },
-  downloadStatuses: { [k: string]: { status: DownloadStatus, info: DownloadInfo }}
+  [k: string]: StatusMessage
 }
 
+
 class StatusKeeper {
-  private downloadStatuses: { [k: string]: { status: DownloadStatus, info: DownloadInfo } | undefined }
-  private infoStatuses: { [k: string]: InfoStatus | undefined }
+  private statuses: { [k: string]: StatusMessage | undefined }
   private clients: WebSocket[]
 
   constructor() {
-    this.downloadStatuses = {}
-    this.infoStatuses = {}
+    this.statuses = {}
     this.clients = []
   }
 
   private getUpdateMessage(): string {
-    return JSON.stringify({
-      downloadStatuses: Object.entries(this.downloadStatuses).reduce((acc, [k, v]) => ({ ...acc, ...(v === undefined ? {} : { [k]: v })}), {}),
-      infoStatuses: Object.entries(this.infoStatuses).reduce((acc, [k, v]) => ({ ...acc, ...(v === undefined ? {} : { [k]: v })}), {}),
-    })
+    return JSON.stringify(Object.entries(this.statuses).reduce((acc, [k, v]) => ({ ...acc, ...(v === undefined ? {} : { [k]: v })}), {}))
   }
+
   private updateClients() {
   const message = this.getUpdateMessage()
     for (const client of [...this.clients]) {
@@ -43,10 +46,6 @@ class StatusKeeper {
 
       client.send(message)
     }
-  }
-
-  private makeDownloadKey(key: string, info: DownloadInfo) {
-    return `${key}:${info.type}:${info.isList ? "list" : "single"}`
   }
 
   addClient(client: WebSocket) {
@@ -64,51 +63,35 @@ class StatusKeeper {
     client.addEventListener("open", () => client.send(this.getUpdateMessage()))
   }
 
-  setInfoStatus(url: string, status: InfoStatus) {
-    this.infoStatuses[url] = status
+  setStatus(id: string, statusMessage: StatusMessage) {
+    const existingStatus = this.statuses[id] || {} as StatusMessage
+    this.statuses[id] = { ...existingStatus, ...statusMessage }
 
-    if (status !== InfoStatus.Fetching) {
+    const status = statusMessage.status
+
+    const validPendingStatuses = [DownloadStatus.Fetching, DownloadStatus.Downloading]
+    
+    // If we've downloaded the thing, or we've errored out, clear the status after 5 minutes.
+    if (!validPendingStatuses.includes(status)) {
       setTimeout(() => {
-        if (this.infoStatuses[url] === InfoStatus.Fetching) {
+        if (this.statuses[id] === undefined || (this.statuses[id].status) === status) {
           return
         }
 
-        this.infoStatuses[url] = undefined
+        this.statuses[id] = undefined
       }, 5*60*1000)
     }
     this.updateClients()
   }
-  startDownloadStatus(key: string, info: DownloadInfo): string {
-    const pKey = this.makeDownloadKey(key, info)
 
-    if (this.downloadStatuses[pKey]) {
-      console.warn(`Re-starting download status for ${pKey}`)
-    }
-
-    this.downloadStatuses[pKey] = {
-      status: DownloadStatus.Downloading,
-      info,
-    }
-
-    this.updateClients()
-    return pKey
+  getSimilarStatuses(searchParams: GetSimilarStatusesArgs, omitId: string | undefined = undefined): StatusMessage[] {
+    return Object.values(this.statuses).filter(status => {
+      return status !== undefined && status.id !== omitId && status?.ytID === searchParams.ytID && status.isList === searchParams.isList && status.type == searchParams.type
+    }).map(s => ({ ...s } as StatusMessage))
   }
-  setDownloadStatus(pKey: string, status: DownloadStatus) {
-    if (!this.downloadStatuses[pKey]) {
-      console.warn(`Cannot set status of unknown pkey: ${pKey}`)
-      return
-    }
 
-    this.downloadStatuses[pKey].status = status
-    this.updateClients()
-    if (status === DownloadStatus.Done || status === DownloadStatus.Error) {
-      setTimeout(() => {
-        const status = this.downloadStatuses[pKey]?.status || DownloadStatus.Unknown
-        if ([DownloadStatus.Done, DownloadStatus.Error].includes(status)) {
-          this.downloadStatuses[pKey] = undefined
-        }
-      }, 5*60*1000)
-    }
+  removeStatus(id: string) {
+    if (this.statuses[id] !== undefined) this.statuses[id] = undefined
   }
 }
 

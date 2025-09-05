@@ -16,7 +16,10 @@ type AkoRouterOptions = {
   autoOption?: boolean,
 }
 
-export class AkoRouter<Context extends { pathParams?: { [key: string]: string }}> {
+// deno-lint-ignore ban-types
+export type AkoContext<T = {}> = T & { pathParams?: { [key: string]: string }}
+
+export class AkoRouter<Context extends AkoContext> {
   constructor(options: AkoRouterOptions = {}) {
     const {
       basePath,
