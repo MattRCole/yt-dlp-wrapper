@@ -31,6 +31,10 @@ enum SponsorBlockCategories {
   All = "all"
 }
 
+const getPotExtractorArgs = (baseUrl: string): ({[k: string]: string | BoolArg}) => {
+  return { "--extractor-args": `youtubepot-bgutilhttp:base_url=${baseUrl}` }
+}
+
 const DEFAULT_ARGS = {
   "--restrict-filenames": new BoolArg(),
   "--embed-thumbnail": new BoolArg(),
@@ -112,21 +116,26 @@ export class YouTubeDownload {
   private readonly exeName: string
   private readonly videoFolderPath: string
   private readonly musicFolderPath: string
+  private readonly extractorArgs: {[k: string]: string | BoolArg }
   constructor() {
 
     const exeName = Deno.env.get("YTDLW_EXE")
     const exePath = Deno.env.get("YTDLW_EXE_PATH")
     const videoFolderPath = Deno.env.get("YTDLW_VIDEO")
     const musicFolderPath = Deno.env.get("YTDLW_MUSIC")
+    const potServer = Deno.env.get("YTDLW_POT")
 
     if (!videoFolderPath || !musicFolderPath) {
       throw new Error(`Either music or video path is not defined! videoPath: ${videoFolderPath}, musicPath: ${musicFolderPath}`)
     }
     if (!exeName) throw new Error(`Cannot determine ytdlp exe name! YTDLW_EXE=${exeName}`)
 
+    if (!potServer) console.warn("Warning: No PoToken arguments were passed. Extension will not be used.")
+
     this.exeName = exeName
     this.videoFolderPath = videoFolderPath
     this.musicFolderPath = musicFolderPath
+    this.extractorArgs = potServer ? getPotExtractorArgs(potServer) : {}
 
     let lastUpdateTime: Date | undefined
 
@@ -171,6 +180,7 @@ export class YouTubeDownload {
     const templateStr = `{ ${Object.entries(INFO_FORMAT_ARGS).map(([k, arg]) => arg.getCmdStr(k)).join(", ")} }`
     console.log({ templateStr })
     const cmd = new Deno.Command(this.exeName, { args: [
+      ...makeArgs(this.extractorArgs),
       "--print",
       templateStr,
       url
@@ -211,6 +221,7 @@ export class YouTubeDownload {
       "-o",
       `${this.videoFolderPath}/${OutputFormats.SingleVideo}`,
       ...makeArgs(SAFETY_ARGS),
+      ...makeArgs(this.extractorArgs),
       id
     ]
     console.log({ operation: "Download Video", args })
@@ -228,6 +239,7 @@ export class YouTubeDownload {
       "-o",
       `${this.musicFolderPath}/${OutputFormats.SingleVideo}`,
       ...makeArgs(SAFETY_ARGS),
+      ...makeArgs(this.extractorArgs),
       id
     ]
     console.log({ operation: "Download Song", args })
@@ -245,6 +257,7 @@ export class YouTubeDownload {
       ...(options.includeSubtitles ? makeArgs(INCLUDE_SUBTITLES) : []),
       ...(options.removeSponsorSegments ? makeArgs(SPONSOR_BLOCK_ARGS) : []),
       ...makeArgs(SAFETY_ARGS),
+      ...makeArgs(this.extractorArgs),
       "-o",
       outputPath,
       listId
@@ -265,6 +278,7 @@ export class YouTubeDownload {
       ...makeArgs(SAFETY_ARGS),
       "-o",
       outputPath,
+      ...makeArgs(this.extractorArgs),
       listId
     ]
     console.log({ operation: "Download Music Playlist", args })

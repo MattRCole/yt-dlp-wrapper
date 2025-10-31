@@ -30,7 +30,12 @@ export class WSHandler {
     const wsUrl = `${this.baseUrl}/api/ws`
     let socket = new WebSocket(wsUrl)
     this.parentElement = parentElement
+    this.downloadOrder = []
     socket.addEventListener("message", ev => {
+      if (ev.data == "ping") {
+        socket.send("pong")
+        return
+      }
       /** @type {WSMessage} */
       const statusData = JSON.parse(ev.data)
       this.downloadOrder = this.rectifyLists(this.downloadOrder, Object.keys(statusData))

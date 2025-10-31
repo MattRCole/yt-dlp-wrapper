@@ -50,8 +50,14 @@ class StatusKeeper {
 
   addClient(client: WebSocket) {
     this.clients.push(client)
+    const timeout = setInterval(() => {
+      if (client.readyState == client.OPEN) {
+        client.send("ping")
+      }
+    }, 1000)
     const removeClient = () => {
       const index = this.clients.indexOf(client)
+      clearInterval(timeout)
       if (index === -1) {
         console.warn("Trying to remove a non-existent client")
         return
@@ -61,6 +67,10 @@ class StatusKeeper {
     client.addEventListener("close", removeClient)
     client.addEventListener("error", removeClient)
     client.addEventListener("open", () => client.send(this.getUpdateMessage()))
+    client.addEventListener("message", (e) => {
+      if (e.data == "pong") return
+      console.log(`Got message from client:: ${e.data}`)
+    })
   }
 
   setStatus(id: string, statusMessage: StatusMessage) {

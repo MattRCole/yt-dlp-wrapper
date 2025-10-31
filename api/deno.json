@@ -1,7 +1,7 @@
 {
   "tasks": {
     "base": "echo $PWD && base-task.sh",
-    "dev": "export $(cat ./.env | xargs) && \"$PWD/base-task.sh\" --watch main.ts",
+    "dev": "export $(cat ./.env | xargs) && \"$PWD/base-task.sh\" --watch src/main.ts",
     "prod": "base main.ts"
   },
   "imports": {
