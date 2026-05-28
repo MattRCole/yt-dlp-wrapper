@@ -6,7 +6,6 @@ const INFO_DELIM = crypto.randomUUID().replaceAll("-", "")
 const INFO_NULL = crypto.randomUUID().replaceAll("-", "")
 
 const DEFAULT_VID_ARGS = {
-  "-f": `bv*+bestaudio[acodec~='(aac|mp4a.*|mp3.*)']`,
   "--merge-output-format": `mkv`,
   "--add-metadata": new BoolArg(),
 } as const
