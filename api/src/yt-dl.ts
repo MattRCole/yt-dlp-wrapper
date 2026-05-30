@@ -38,6 +38,7 @@ const DEFAULT_ARGS = {
   "--restrict-filenames": new BoolArg(),
   "--embed-thumbnail": new BoolArg(),
   "--force-overwrites": new BoolArg(),
+  "--remote-components": "ejs:github",
 }
 
 const SPONSOR_BLOCK_ARGS = {
