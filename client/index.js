@@ -48,6 +48,7 @@ window.onload = () => {
   buttonDownload.onclick = handleDownload(buttonDownload)
 
   wsHandler = new WSHandler(document.getElementById("general-status-container"), BASE_URL)
+  window.wsHandler = wsHandler
 }
 
 /** @type {(buttonDownload: HTMLInputElement) => (() => Promise<void>)} */

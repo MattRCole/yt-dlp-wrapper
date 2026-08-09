@@ -1,6 +1,49 @@
 /** @typedef {import('../api/src/status').WSMessage} WSMessage */
 /** @typedef {WSMessage[string]} StatusMessage */
 
+/** @typedef {{ size: number, lineSize: number, color: string, bgColor: string }} LoadingOptions */
+
+/** @type {{ [P in keyof LoadingOptions]: string }} **/
+const LOADING_STYLE_OPTIONS = {
+  bgColor: "--almost-bg-color",
+  color: "--positive-color",
+  size: "4rem",
+  lineSize: "0.5rem",
+}
+
+/** @type {(part: number, percent: number, parent: HTMLElement, loadingOptions: LoadingOptions) => HTMLDivElement} */
+const addLoadingElement = (part, percent, parent, loadingOptions) => {
+  const {
+    size, lineSize, color, bgColor
+  } = loadingOptions
+  const container = document.createElement("div")
+  container.className = "loading"
+  const canvas = document.createElement("canvas")
+  canvas.className = "loading"
+  canvas.width = canvas.height = size
+  const spanPart = document.createElement("span")
+  spanPart.className = "loading"
+  spanPart.textContent = `${part + 1}`
+  container.append(spanPart)
+  container.append(canvas)
+  parent.append(container)
+  const ctx = canvas.getContext("2d")
+  ctx.translate(size / 2, size / 2)
+  ctx.rotate(-Math.PI / 2)
+
+  const drawCircle = (circleColor, width, circlePercent) => {
+    const radius = (size - width) / 2
+    ctx.beginPath()
+    ctx.arc(0, 0, radius, 0, Math.PI * 2 * Math.min(Math.max(0, circlePercent), 1))
+    ctx.strokeStyle = circleColor
+    ctx.lineCap = 'round'
+    ctx.lineWidth = width
+    ctx.stroke()
+  }
+  drawCircle(bgColor, lineSize, 1)
+  drawCircle(color, lineSize, percent)
+}
+
 export class WSHandler {
   /**
    * @type {{[key: string]: HTMLDivElement}}
@@ -22,6 +65,10 @@ export class WSHandler {
    * @readonly
    */
   baseUrl
+
+
+  /** @type {LoadingOptions} */
+  computedLoadingOptions
 
   constructor(parentElement, baseUrl) {
     this.existingDownloadElements = {}
@@ -48,6 +95,22 @@ export class WSHandler {
         socket = new WebSocket(wsUrl)
       }, 100)
     })
+
+    this.recomputeStyles()
+    document.addEventListener('resize', this.recomputeStyles.bind(this))
+  }
+
+  recomputeStyles() {
+    const style = window.getComputedStyle(document.body)
+    const fontSize = parseInt(style.fontSize.replace('px', ''))
+    /** @type {LoadingOptions} */
+    const computed = {
+      color: style.getPropertyValue(LOADING_STYLE_OPTIONS.color),
+      bgColor: style.getPropertyValue(LOADING_STYLE_OPTIONS.bgColor),
+      size: fontSize * parseFloat(LOADING_STYLE_OPTIONS.size.replace('rem', '')),
+      lineSize: Math.max(1, fontSize * parseFloat(LOADING_STYLE_OPTIONS.lineSize.replace('rem', ''))),
+    }
+    this.computedLoadingOptions = computed
   }
 
   rectifyLists(myList, newList) {
@@ -72,8 +135,8 @@ export class WSHandler {
     const oldDownloadKeys = Object.keys(this.existingDownloadElements)
     /** @type {HTMLDivElement} */
     const downloadStatusContainer = this.parentElement.getElementsByClassName("download-status-container")[0]
-    ; [...(downloadStatusContainer.childNodes)].forEach(node => downloadStatusContainer.removeChild(node))
-    for(const downloadKey of [...this.downloadOrder]) {
+      ;[...(downloadStatusContainer.childNodes)].forEach(node => downloadStatusContainer.removeChild(node))
+    for (const downloadKey of [...this.downloadOrder]) {
       const oldDownloadKeyIndex = oldDownloadKeys.indexOf(downloadKey)
 
       if (oldDownloadKeyIndex >= 0) {
@@ -116,7 +179,20 @@ export class WSHandler {
 
     const statusPrefix = (statusMessage.isList ? "📋" : "") + (statusMessage.type === "video" ? "🎥" : "🎶")
     downloadStatusLegend.innerText = `${statusPrefix} ${statusMessage.author || "Unknown Author"}`
-    downloadStatusText.innerText = `${statusMessage.status.charAt(0).toUpperCase()+statusMessage.status.slice(1)}: ${statusMessage.title || statusMessage.url}`
+    const statusText = `${statusMessage.status.charAt(0).toUpperCase() + statusMessage.status.slice(1)}: ${statusMessage.title || statusMessage.url}`
+    if (statusMessage.status === "downloading") {
+      const container = document.createElement('div')
+      container.className = 'downloading-progress-container'
+      const textEl = document.createElement('p')
+      textEl.className = 'downloading-status-text-desc'
+      textEl.innerText = statusText
+      downloadStatusText.innerText = ""
+      container.appendChild(textEl)
+      addLoadingElement(statusMessage.part, statusMessage.percent, container, this.computedLoadingOptions)
+      downloadStatusText.parentNode.replaceChild(container, downloadStatusText)
+    } else {
+      downloadStatusText.innerText = statusText
+    }
     element.classList = `download-status-item ${statusMessage.status}`
     return element
   }
